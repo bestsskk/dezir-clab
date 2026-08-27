@@ -1,0 +1,268 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 String          @id @default(cuid())
+  email              String          @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  role               String          @default("MEMBER") // "MEMBER" | "ADMIN"
+  status             String          @default("ACTIVE") // "ACTIVE" | "SUSPENDED" | "BANNED"
+  avatarUrl          String?
+  bio                String?
+  invitationId       String?
+  invitation         Invitation?     @relation("MemberInvitation", fields: [invitationId], references: [id], onDelete: SetNull)
+  sessions           Session[]
+  reactions          Reaction[]
+  comments           Comment[]
+  conversations      Conversation[]
+  sentMessages       Message[]
+  notifications      Notification[]
+  auditLogs          AdminAuditLog[]
+  createdInvitations Invitation[]    @relation("AdminCreatedInvitations")
+  passwordResets     PasswordReset[]
+  lastLoginAt        DateTime?
+  deviceId           String?
+  deviceInfo         String?
+  deviceBoundAt      DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([deviceId])
+}
+
+model ManagedProfile {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  avatarUrl     String
+  coverUrl      String?
+  bio           String
+  age           Int?
+  location      String?
+  status        String         @default("ACTIVE") // "ACTIVE" | "HIDDEN" | "DISABLED"
+  isFeatured    Boolean        @default(true)
+  displayOrder  Int            @default(0)
+  posts         Post[]
+  conversations Conversation[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([slug])
+  @@index([status])
+}
+
+model Post {
+  id                 String      @id @default(cuid())
+  profileId          String?
+  profile            ManagedProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  authorUserId       String?
+  postType           String      @default("STANDARD") // "STANDARD" | "PHOTO" | "VIDEO" | "TEXT" | "ANNOUNCEMENT"
+  caption            String
+  status             String      @default("PUBLISHED") // "PUBLISHED" | "DRAFT" | "SCHEDULED" | "PENDING_APPROVAL" | "HIDDEN"
+  isPinned           Boolean     @default(false)
+  pinnedOrder        Int         @default(0)
+  announcementTitle  String?
+  announcementCtaText String?
+  announcementCtaLink String?
+  scheduledAt        DateTime?
+  media              PostMedia[]
+  reactions          Reaction[]
+  comments           Comment[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([profileId])
+  @@index([status])
+  @@index([isPinned])
+  @@index([createdAt])
+}
+
+model PostMedia {
+  id           String   @id @default(cuid())
+  postId       String
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaUrl     String
+  thumbnailUrl String?
+  mediaType    String   @default("IMAGE") // "IMAGE" | "VIDEO"
+  caption      String?
+  displayOrder Int      @default(0)
+  width        Int?
+  height       Int?
+  size         Int?
+  mimeType     String?
+  createdAt    DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Reaction {
+  id           String   @id @default(cuid())
+  postId       String
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactionType String   @default("LIKE") // "LIKE" | "LOVE" | "FIRE" | "WOW"
+  createdAt    DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Comment {
+  id        String          @id @default(cuid())
+  postId    String
+  post      Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  status    String          @default("PUBLISHED") // "PUBLISHED" | "HIDDEN" | "PENDING_APPROVAL" | "REPORTED"
+  reports   CommentReport[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([postId])
+  @@index([createdAt])
+}
+
+model CommentReport {
+  id                String   @id @default(cuid())
+  commentId         String
+  comment           Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reportedByUserId  String
+  reason            String
+  status            String   @default("PENDING") // "PENDING" | "RESOLVED" | "DISMISSED"
+  createdAt         DateTime @default(now())
+
+  @@index([commentId])
+}
+
+model Conversation {
+  id            String         @id @default(cuid())
+  memberId      String
+  member        User           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  profileId     String
+  profile       ManagedProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  status        String         @default("ACTIVE") // "ACTIVE" | "ARCHIVED" | "BLOCKED"
+  lastMessageAt DateTime       @default(now())
+  messages      Message[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([memberId, profileId])
+  @@index([memberId])
+  @@index([profileId])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     String       // "MEMBER" | "ADMIN_PROFILE"
+  senderUserId   String?
+  senderUser     User?        @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+model Invitation {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  maxUses         Int       @default(1)
+  currentUses     Int       @default(0)
+  status          String    @default("ACTIVE") // "ACTIVE" | "EXPIRED" | "REVOKED" | "EXHAUSTED"
+  expiresAt       DateTime?
+  notes           String?
+  createdByUserId String?
+  createdByUser   User?     @relation("AdminCreatedInvitations", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  usedByMembers   User[]    @relation("MemberInvitation")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([token])
+  @@index([status])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  deviceId     String?
+  createdAt    DateTime @default(now())
+
+  @@index([sessionToken])
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    // "NEW_MESSAGE" | "POST_REACTION" | "NEW_COMMENT" | "ANNOUNCEMENT" | "ADMIN_ALERT"
+  title     String
+  message   String
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([readAt])
+  @@index([createdAt])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String?
+  adminUser   User?    @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  action      String
+  targetType  String?
+  targetId    String?
+  detailsJson String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

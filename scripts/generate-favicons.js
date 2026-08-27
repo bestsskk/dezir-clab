@@ -1,0 +1,51 @@
+const fs = require('fs');
+const path = require('path');
+
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#121215" />
+      <stop offset="50%" stop-color="#0a0a0c" />
+      <stop offset="100%" stop-color="#020202" />
+    </linearGradient>
+    <linearGradient id="dGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb7185" />
+      <stop offset="35%" stop-color="#f43f5e" />
+      <stop offset="70%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#9f1239" />
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(244, 63, 94, 0.7)" />
+      <stop offset="50%" stop-color="rgba(251, 191, 36, 0.4)" />
+      <stop offset="100%" stop-color="rgba(225, 29, 72, 0.2)" />
+    </linearGradient>
+    <filter id="dGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#e11d48" flood-opacity="0.45" />
+    </filter>
+  </defs>
+  
+  <!-- Rounded Premium Dark Background -->
+  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+  <rect x="8" y="8" width="496" height="496" rx="112" fill="none" stroke="url(#borderGrad)" stroke-width="10" />
+  
+  <!-- Stylized Letter 'D' -->
+  <path d="M 152 110 L 268 110 C 362 110 416 160 416 256 C 416 352 362 402 268 402 L 152 402 Z M 224 172 L 224 340 L 264 340 C 322 340 352 308 352 256 C 352 204 322 172 264 172 Z" fill="url(#dGrad)" filter="url(#dGlow)" />
+  
+  <!-- Luxury Diamond Sparkle Accent on top right of D -->
+  <polygon points="384,118 398,142 384,166 370,142" fill="url(#goldAccent)" />
+  <circle cx="384" cy="142" r="3.5" fill="#ffffff" />
+</svg>`;
+
+// Write SVG files
+const publicDir = path.join(__dirname, '..', 'public');
+const appDir = path.join(__dirname, '..', 'app');
+
+fs.writeFileSync(path.join(publicDir, 'favicon.svg'), svgContent, 'utf8');
+fs.writeFileSync(path.join(publicDir, 'icon.svg'), svgContent, 'utf8');
+fs.writeFileSync(path.join(appDir, 'icon.svg'), svgContent, 'utf8');
+
+console.log('Favicon SVGs generated successfully.');
