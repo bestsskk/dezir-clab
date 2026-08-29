@@ -320,33 +320,36 @@ function initSchemaAndSeed(db) {
       });
       profStmt.free();
 
-      // Insert Default VIP Invitations
-      const invStmt = db.prepare(`
-        INSERT OR REPLACE INTO Invitation (id, token, maxUses, currentUses, status, expiresAt, notes, createdByUserId, createdAt, updatedAt)
-        VALUES (?, ?, ?, 0, 'ACTIVE', ?, ?, ?, ?, ?)
-      `);
-      const oneYearFromNow = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-      invStmt.run([
-        generateCuid(),
-        'VIP-COMMUNITY-2026',
-        100,
-        oneYearFromNow,
-        'VIP Private Access Pass',
-        adminId,
-        now,
-        now,
-      ]);
-      invStmt.run([
-        generateCuid(),
-        'EXECUTIVE-INVITE-01',
-        1,
-        oneYearFromNow,
-        'Executive Single-Use Pass',
-        adminId,
-        now,
-        now,
-      ]);
-      invStmt.free();
+      // Insert / Ensure Permanent Unlimited VIP Invitations
+      const tenYearsFromNow = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString();
+      const permanentTokens = [
+        { token: 'VIP-COMMUNITY-2026', notes: 'Master Permanent VIP Invitation Link (Unlimited)' },
+        { token: 'VIP-ACCESS', notes: 'Permanent VIP Quick Link (Unlimited)' },
+        { token: 'DEZIR-VIP', notes: 'Permanent Club Pass (Unlimited)' },
+      ];
+
+      for (const p of permanentTokens) {
+        const checkInv = db.prepare('SELECT id FROM Invitation WHERE token = ?');
+        checkInv.bind([p.token]);
+        let existingId = null;
+        if (checkInv.step()) {
+          existingId = checkInv.getAsObject().id;
+        }
+        checkInv.free();
+
+        if (existingId) {
+          const updateStmt = db.prepare('UPDATE Invitation SET maxUses = 999999, status = "ACTIVE", expiresAt = ?, updatedAt = ? WHERE id = ?');
+          updateStmt.run([tenYearsFromNow, now, existingId]);
+          updateStmt.free();
+        } else {
+          const insertStmt = db.prepare(`
+            INSERT INTO Invitation (id, token, maxUses, currentUses, status, expiresAt, notes, createdByUserId, createdAt, updatedAt)
+            VALUES (?, ?, 999999, 0, 'ACTIVE', ?, ?, ?, ?, ?)
+          `);
+          insertStmt.run([generateCuid(), p.token, tenYearsFromNow, p.notes, adminId, now, now]);
+          insertStmt.free();
+        }
+      }
 
       // Insert Default Site Settings
       const settingStmt = db.prepare(`

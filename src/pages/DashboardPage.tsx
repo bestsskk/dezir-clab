@@ -193,7 +193,7 @@ export default function CommunityFeedPage() {
         <div className="post-header">
           <div className="post-author-row">
             {p.profile ? (
-              <Link href={`/profile/${p.profile.slug}`}>
+              <Link to={`/profile/${p.profile.slug}`}>
                 <img
                   src={p.profile.avatarUrl}
                   alt={p.profile.name}
@@ -219,7 +219,7 @@ export default function CommunityFeedPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {p.profile ? (
-                  <Link href={`/profile/${p.profile.slug}`} className="author-name">
+                  <Link to={`/profile/${p.profile.slug}`} className="author-name">
                     {p.profile.name}
                     <ShieldCheck size={16} color="var(--primary-light)" />
                   </Link>

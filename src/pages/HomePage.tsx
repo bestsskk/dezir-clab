@@ -167,7 +167,7 @@ export default function LandingPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <Link
-            href="/login"
+            to="/login"
             className="btn btn-secondary btn-sm"
             style={{
               fontSize: '0.75rem',
