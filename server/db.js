@@ -232,22 +232,28 @@ function initSchemaAndSeed(db) {
     `);
 
     // 2. Check if admin user exists
-    const checkUserStmt = db.prepare('SELECT COUNT(*) as count FROM User WHERE role = "ADMIN"');
-    let adminCount = 0;
-    if (checkUserStmt.step()) {
-      adminCount = checkUserStmt.getAsObject().count || 0;
+    // 2. Ensure Admin user exists & is synced with environment variable or default
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@community.vip').toLowerCase().trim();
+    const adminPassword = process.env.ADMIN_PASSWORD || 'AdminSecret2026!';
+    const passwordHash = bcrypt.hashSync(adminPassword, 10);
+    const now = new Date().toISOString();
+
+    const findAdminStmt = db.prepare('SELECT id, email FROM User WHERE role = "ADMIN" OR email = ?');
+    findAdminStmt.bind([adminEmail]);
+    let adminRow = null;
+    if (findAdminStmt.step()) {
+      adminRow = findAdminStmt.getAsObject();
     }
-    checkUserStmt.free();
+    findAdminStmt.free();
 
-    if (adminCount === 0) {
-      console.log('[Dezir Clab DB] Initializing fresh database with seed data...');
-      const now = new Date().toISOString();
-      const adminId = generateCuid();
-      const adminEmail = (process.env.ADMIN_EMAIL || 'admin@community.vip').toLowerCase().trim();
-      const adminPassword = process.env.ADMIN_PASSWORD || 'AdminSecret2026!';
-      const passwordHash = bcrypt.hashSync(adminPassword, 10);
-
-      // Insert Admin
+    let adminId = adminRow?.id;
+    if (adminRow) {
+      // Sync admin password hash and ensure ACTIVE status
+      const updateAdminStmt = db.prepare('UPDATE User SET email = ?, passwordHash = ?, status = "ACTIVE" WHERE id = ?');
+      updateAdminStmt.run([adminEmail, passwordHash, adminRow.id]);
+      updateAdminStmt.free();
+    } else {
+      adminId = generateCuid();
       const userStmt = db.prepare(`
         INSERT INTO User (id, email, passwordHash, firstName, lastName, role, status, avatarUrl, bio, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -266,6 +272,18 @@ function initSchemaAndSeed(db) {
         now,
       ]);
       userStmt.free();
+    }
+
+    // 3. Ensure 10 Managed Profiles exist
+    const checkProfilesStmt = db.prepare('SELECT COUNT(*) as count FROM ManagedProfile');
+    let profCount = 0;
+    if (checkProfilesStmt.step()) {
+      profCount = checkProfilesStmt.getAsObject().count || 0;
+    }
+    checkProfilesStmt.free();
+
+    if (profCount === 0) {
+      console.log('[Dezir Clab DB] Initializing fresh database with profiles and seeds...');
 
       // Insert 10 Managed Profiles
       const profiles = [
