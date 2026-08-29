@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyPassword } from '@/lib/auth';
-import { createSession } from '@/lib/session';
+import { createSession, SESSION_COOKIE_NAME } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createAuditLog } from '@/lib/security';
 import { extractDeviceFromRequest, DEVICE_COOKIE_NAME, DEVICE_COOKIE_MAX_AGE } from '@/lib/device';
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create session
-    await createSession(user.id, {
+    const sessionToken = await createSession(user.id, {
       ipAddress: ip,
       userAgent: req.headers.get('user-agent') || undefined,
       deviceId: activeDeviceId || undefined,
@@ -133,6 +133,8 @@ export async function POST(req: NextRequest) {
         userAgent: req.headers.get('user-agent') || undefined,
       });
     }
+
+    const isHttps = req.nextUrl.protocol === 'https:' || process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') || false;
 
     const response = NextResponse.json({
       success: true,
@@ -148,8 +150,16 @@ export async function POST(req: NextRequest) {
       redirectUrl: user.role === 'ADMIN' || user.role === 'VIEWER_ADMIN' ? '/likecrazy' : '/dashboard',
     });
 
+    // Explicitly set the session cookie on the response
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
     // Set persistent device cookie if device identifier exists
-    const isHttps = req.nextUrl.protocol === 'https:' || process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') || false;
     if (activeDeviceId) {
       response.cookies.set(DEVICE_COOKIE_NAME, activeDeviceId, {
         httpOnly: false,

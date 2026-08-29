@@ -1,36 +1,53 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-  pool: Pool | undefined;
-};
+declare global {
+  var __prisma: PrismaClient | undefined;
+}
 
-const connectionString = process.env.DATABASE_URL || '';
+function resolveDatabaseUrl(): string {
+  const candidates = [
+    path.join(process.cwd(), 'prisma', 'dev.db'),
+    path.join(process.cwd(), 'dev.db'),
+    path.join(process.cwd(), '..', 'prisma', 'dev.db'),
+    path.join(process.cwd(), '..', 'dev.db'),
+    path.join(__dirname, 'prisma', 'dev.db'),
+    path.join(__dirname, 'dev.db'),
+    path.resolve(process.cwd(), 'prisma/dev.db'),
+  ];
 
-// Connection pool configuration for serverless PostgreSQL / Supabase
-const pool =
-  globalForPrisma.pool ??
-  new Pool({
-    connectionString,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  });
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return `file:${candidate}`;
+    }
+  }
 
-const adapter = new PrismaPg(pool);
+  return 'file:./prisma/dev.db';
+}
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
+function createPrismaClient(): PrismaClient {
+  const dbUrl = resolveDatabaseUrl();
+  process.env.DATABASE_URL = dbUrl;
+
+  return new PrismaClient({
+    datasources: {
+      db: {
+        url: dbUrl,
+      },
+    },
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
+}
+
+export const prisma = globalThis.__prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-  globalForPrisma.pool = pool;
+  globalThis.__prisma = prisma;
 }
 
 export default prisma;
+
+
+
+

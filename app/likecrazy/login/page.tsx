@@ -42,18 +42,18 @@ export default function AdminLoginPage() {
         data = await res.json();
       } catch {
         const rawText = await res.text().catch(() => '');
-        setErrorMsg(rawText ? `Server Error (${res.status}): ${rawText.slice(0, 150)}` : `Server Error (${res.status})`);
+        setErrorMsg(rawText ? `Server Error (${res.status}): ${rawText.slice(0, 200)}` : `Server Error (${res.status}). Please check /api/health.`);
         return;
       }
 
       if (res.ok && data.success) {
-        if (data.user?.role !== 'ADMIN') {
+        if (data.user?.role !== 'ADMIN' && data.user?.role !== 'VIEWER_ADMIN') {
           setErrorMsg('Access Denied: Administrative privileges required.');
           return;
         }
         router.push('/likecrazy');
       } else {
-        setErrorMsg(data.error || 'Authentication failed. Please verify credentials.');
+        setErrorMsg(data.error || data.message || data.details || `Authentication failed (${res.status}). Please check your server database connection.`);
       }
     } catch (err: any) {
       setErrorMsg(err?.message ? `Connection error: ${err.message}` : 'Network error. Please check your server connection.');

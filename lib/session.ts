@@ -35,14 +35,18 @@ export async function createSession(
   });
 
   const isHttps = process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') || false;
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
-    httpOnly: true,
-    secure: isHttps,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_MAX_AGE_DAYS * 24 * 60 * 60,
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: SESSION_MAX_AGE_DAYS * 24 * 60 * 60,
+    });
+  } catch {
+    // Handled explicitly by response.cookies in route handlers
+  }
 
   // Update user last login
   await prisma.user.update({

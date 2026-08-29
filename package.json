@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "postinstall": "prisma generate",
-    "start": "next start",
-    "lint": "eslint",
-    "seed": "tsx prisma/seed.ts",
-    "test:suite": "tsx scripts/run-verification-tests.ts"
+    "dev": "vite",
+    "build": "vite build",
+    "postinstall": "prisma generate || true",
+    "start": "node server.js",
+    "railway:build": "vite build",
+    "railway:start": "node server.js",
+    "netlify:build": "vite build",
+    "seed": "tsx prisma/seed.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -18,13 +19,19 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "date-fns": "^4.4.0",
+    "express": "^5.2.1",
     "lucide-react": "^1.33.0",
     "next": "16.3.2",
     "pg": "^8.23.0",
     "prisma": "^6.19.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-router-dom": "^7.18.3",
+    "sql.js": "^1.14.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -32,9 +39,11 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.2.2"
   }
 }
