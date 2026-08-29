@@ -19,7 +19,6 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^13.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "date-fns": "^4.4.0",
@@ -45,5 +44,8 @@
     "tsx": "^4.23.12",
     "typescript": "^5",
     "vite": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
