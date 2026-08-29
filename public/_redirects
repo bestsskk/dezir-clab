@@ -1,6 +1,5 @@
 # Netlify Single Page Application (SPA) Redirects
-# This ensures direct links, refreshes, and deep routing work on Netlify
-
-/api/*      https://community-production-backend.up.railway.app/api/:splat  200
-/uploads/*  https://community-production-backend.up.railway.app/uploads/:splat 200
-/*          /index.html                                                     200
+# Proxies /api and /uploads to live Railway backend
+/api/*      https://web-production-dae160.up.railway.app/api/:splat  200!
+/uploads/*  https://web-production-dae160.up.railway.app/uploads/:splat 200!
+/*          /index.html                                              200

@@ -3,6 +3,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
 // 1. Parse local .env file into process.env if present (does not overwrite existing environment variables)
 try {
@@ -37,6 +38,30 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = `file:${defaultSqlitePath}`;
 }
 
+// 3. Helper to locate compiled frontend dist/index.html
+function getDistIndexPath() {
+  const candidates = [
+    path.join(__dirname, 'dist', 'index.html'),
+    path.join(process.cwd(), 'dist', 'index.html'),
+    path.resolve('dist/index.html'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+// 4. Self-Healing Auto-Build if frontend is missing on cloud boot
+if (!getDistIndexPath()) {
+  console.log('[Dezir Clab] Frontend bundle missing. Running automated build...');
+  try {
+    execSync('npx vite build', { stdio: 'inherit' });
+    console.log('[Dezir Clab] Automated frontend build completed!');
+  } catch (buildErr) {
+    console.warn('[Dezir Clab] Automated build skipped/error:', buildErr.message);
+  }
+}
+
 const { prisma } = require('./server/db');
 
 const app = express();
@@ -64,6 +89,7 @@ app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(process.cwd(), 'dist')));
 
 // Diagnostic Health & Ping Endpoints (Used by Railway, Netlify, and Monitoring)
 app.get('/api/ping', async (req, res) => {
@@ -150,25 +176,26 @@ app.use('/api/account', require('./server/routes/account'));
 app.use('/api/invitations', require('./server/routes/invitations'));
 app.use('/api/admin', require('./server/routes/admin'));
 
-// Single Page Application (SPA) Fallback for Express (allows Railway to host Full-Stack if needed)
+// Single Page Application (SPA) Fallback for Express (Serves React frontend on all non-API routes)
 app.use((req, res) => {
-  // If requesting an API route that wasn't matched, return 404 JSON instead of HTML
+  // If requesting an unmatched API route, return 404 JSON
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: `API endpoint ${req.method} ${req.path} not found.` });
   }
 
-  const indexPath = path.join(__dirname, 'dist', 'index.html');
-  if (fs.existsSync(indexPath)) {
+  const indexPath = getDistIndexPath();
+  if (indexPath) {
     return res.sendFile(indexPath);
   }
+
   return res.status(200).send(`
     <!DOCTYPE html>
     <html>
-      <head><title>Dezir Clab Backend</title></head>
+      <head><title>Dezir Clab</title></head>
       <body style="background:#0c0d0e;color:#f4f4f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
         <div style="text-align:center;padding:2rem;">
-          <h1 style="color:#e11d48;margin-bottom:0.5rem;">Dezir Clab API</h1>
-          <p style="color:#a1a1aa;">Backend engine is running. Frontend build pending (run <code>npm run build</code>).</p>
+          <h1 style="color:#e11d48;margin-bottom:0.5rem;">Dezir Clab</h1>
+          <p style="color:#a1a1aa;">Backend engine is running.</p>
           <p style="margin-top:1rem;"><a href="/api/health" style="color:#f59e0b;text-decoration:none;">Check Health Status &rarr;</a></p>
         </div>
       </body>
