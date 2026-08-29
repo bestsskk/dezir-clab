@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Sparkles, Lock, Mail, AlertCircle, Loader2, KeyRound, ShieldAlert } from 'lucide-react';
 import { getOrCreateClientDeviceId, getClientDeviceInfo } from '../lib/device';
+import { useAuth } from '../lib/auth-context';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setUser, refreshUser } = useAuth();
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
@@ -40,7 +42,14 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        navigate(data.redirectUrl || redirectUrl);
+        if (data.sessionToken) {
+          try { localStorage.setItem('community_session_token', data.sessionToken); } catch (err) {}
+        }
+        if (data.user) {
+          setUser(data.user);
+        }
+        await refreshUser();
+        window.location.href = data.redirectUrl || redirectUrl;
       } else {
         if (data.code === 'DEVICE_MISMATCH' || res.status === 403) {
           setIsDeviceMismatch(true);

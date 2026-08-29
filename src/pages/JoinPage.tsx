@@ -12,10 +12,12 @@ import {
   XCircle,
 } from 'lucide-react';
 import { getOrCreateClientDeviceId, getClientDeviceInfo } from '../lib/device';
+import { useAuth } from '../lib/auth-context';
 
 export default function JoinPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const { setUser, refreshUser } = useAuth();
 
   const [validating, setValidating] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
@@ -101,7 +103,14 @@ export default function JoinPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        navigate('/dashboard');
+        if (data.sessionToken) {
+          try { localStorage.setItem('community_session_token', data.sessionToken); } catch (err) {}
+        }
+        if (data.user) {
+          setUser(data.user);
+        }
+        await refreshUser();
+        window.location.href = data.redirectUrl || '/dashboard';
       } else {
         setSubmitError(data.error || 'Registration failed. Please check your details.');
       }

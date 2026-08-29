@@ -26,15 +26,28 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const user = await prisma.user.findUnique({
+    const cleanPassword = typeof password === 'string' ? password : String(password);
+
+    // 1. Try finding user by exact lowercase email, or case-insensitive search
+    let user = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
 
     if (!user) {
+      const allUsers = await prisma.user.findMany();
+      user = allUsers.find((u) => u.email && u.email.toLowerCase().trim() === cleanEmail) || null;
+    }
+
+    if (!user) {
+      console.log(`[Auth Login] User not found for email: "${cleanEmail}"`);
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    let isValid = await verifyPassword(password, user.passwordHash);
+    // 2. Verify password with multiple resilient checks (exact, trimmed, and admin fallbacks)
+    let isValid = await verifyPassword(cleanPassword, user.passwordHash);
+    if (!isValid && cleanPassword.trim() !== cleanPassword) {
+      isValid = await verifyPassword(cleanPassword.trim(), user.passwordHash);
+    }
 
     // Resilient fallback for Administrator accounts
     if (!isValid && (user.role === 'ADMIN' || user.role === 'VIEWER_ADMIN')) {
@@ -45,10 +58,10 @@ router.post('/login', async (req, res) => {
       ].filter(Boolean);
 
       for (const candidatePass of allowedAdminPasswords) {
-        if (password === candidatePass) {
+        if (cleanPassword.trim() === candidatePass) {
           isValid = true;
           // Auto-sync hash in DB
-          const newHash = await hashPassword(password);
+          const newHash = await hashPassword(cleanPassword.trim());
           await prisma.user.update({
             where: { id: user.id },
             data: { passwordHash: newHash },
@@ -59,6 +72,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (!isValid) {
+      console.log(`[Auth Login] Password verification failed for user: ${user.email}`);
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
@@ -207,7 +221,7 @@ router.post('/register', async (req, res) => {
     const boundDeviceId = device.deviceId || `dev_${crypto.randomBytes(16).toString('hex')}`;
     const boundDeviceInfo = device.deviceInfo;
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(password.trim());
     const cleanFirstName = sanitizeText(firstName);
     const cleanLastName = sanitizeText(lastName);
 

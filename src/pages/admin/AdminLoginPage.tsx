@@ -48,7 +48,10 @@ export default function AdminLoginPage() {
           setErrorMsg('Access Denied: Administrative privileges required.');
           return;
         }
-        navigate('/likecrazy');
+        if (data.sessionToken) {
+          try { localStorage.setItem('community_session_token', data.sessionToken); } catch (err) {}
+        }
+        window.location.href = '/likecrazy';
       } else {
         setErrorMsg(data.error || data.message || data.details || `Authentication failed (${res.status}). Please check your server database connection.`);
       }

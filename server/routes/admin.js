@@ -138,6 +138,40 @@ router.post('/members/:id/reset-device', requireSuperAdmin, async (req, res) => 
   }
 });
 
+// POST /api/admin/members/:id/set-password
+router.post('/members/:id/set-password', requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body || {};
+
+    if (!newPassword || newPassword.trim().length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const passwordHash = await hashPassword(newPassword.trim());
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { passwordHash },
+    });
+
+    await createAuditLog(
+      {
+        adminUserId: req.user.id,
+        action: 'MEMBER_PASSWORD_OVERRIDE',
+        targetType: 'User',
+        targetId: id,
+        details: { email: updatedUser.email },
+      },
+      req
+    );
+
+    return res.json({ success: true, message: 'Member password updated successfully.' });
+  } catch (error) {
+    console.error('Set member password error:', error);
+    return res.status(500).json({ error: 'Failed to update member password.' });
+  }
+});
+
 // GET /api/admin/profiles
 router.get('/profiles', async (req, res) => {
   try {

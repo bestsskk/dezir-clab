@@ -132,6 +132,32 @@ export default function AdminPortalPage() {
     } catch {}
   };
 
+  // Set Member Password
+  const handleSetMemberPassword = async (memberId: string, memberEmail: string) => {
+    if (isReadOnly) return alert('Viewer Admin is read-only.');
+    const newPass = prompt(`Enter new password for member (${memberEmail}):\n(Must be at least 6 characters)`);
+    if (!newPass || newPass.trim().length < 6) {
+      if (newPass !== null) alert('Password must be at least 6 characters.');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/members/${memberId}/set-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: newPass.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✅ Password updated successfully for ${memberEmail}!`);
+        loadAllData();
+      } else {
+        alert(data.error || 'Failed to update password.');
+      }
+    } catch {
+      alert('Network error updating password.');
+    }
+  };
+
   // Toggle Ban / Suspend
   const handleToggleMemberStatus = async (memberId: string, currentStatus: string) => {
     if (isReadOnly) return alert('Viewer Admin is read-only.');
@@ -446,6 +472,9 @@ export default function AdminPortalPage() {
                       </td>
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                          <button onClick={() => handleSetMemberPassword(m.id, m.email)} className="btn btn-secondary btn-sm" title="Set / Reset Member Password">
+                            <KeyRound size={14} /> Password
+                          </button>
                           {m.deviceId && (
                             <button onClick={() => handleResetDevice(m.id)} className="btn btn-secondary btn-sm" title="Reset Device Lock">
                               <RotateCcw size={14} /> Reset Lock
